@@ -1,0 +1,1 @@
+Simplify building a Gui App by having all the heavy lifting of getting started done. ImGui is the basis of the Gui, running on SDL2 with OpenGL. It includes logging facilities, Thread management with tracking, mutex tracking and debug, core network facilities, based on Boost, event handling, and more. 
