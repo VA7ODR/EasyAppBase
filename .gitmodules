@@ -1,0 +1,10 @@
+[submodule "json_document"]
+	path = json_document
+	url = git@github.com:VA7ODR/json_document.git
+[submodule "imgui"]
+	path = imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
+[submodule "shared_recursive_mutex"]
+	path = shared_recursive_mutex
+	url = git@github.com:VA7ODR/shared_recursive_mutex.git
