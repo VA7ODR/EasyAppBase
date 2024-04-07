@@ -19,7 +19,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-The official repository for this library is at https://github.com/VA7ODR/json
+The official repository for this library is at https://github.com/VA7ODR/EasyAppBase
 
 */
 
