@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.20)
 
-project(YourAppName LANGUAGES CXX)
+project(YourApp LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,6 +12,6 @@ add_compile_definitions(APP_NAME="${PROJECT_NAME}" APP_VERSION_STRING="1.0.0)
 add_subdirectory(EasyAppBase)
 include_directories(EasyAppBase EasyAppBase/shared_recursive_mutex EasyAppBase/imgui EasyAppBase/imgui/backends EasyAppBase/json_document EasyAppBase/json_document/ArbitraryOrderMap EasyAppBase/json_document/SDString)
 
-add_executable(${PROJECT_NAME} copy_this_as_your_main.cpp)
+add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE easy_app_base)
 
