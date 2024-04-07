@@ -57,10 +57,9 @@ std::map<std::string, std::shared_ptr<EasyAppBase>> EasyAppBase::registry;
 
 EasyAppBase::EasyAppBase(const std::string & sNameIn, const std::string sTitleIn) : sName(sNameIn), sTitle(sTitleIn)
 {
-
 }
 
-int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle)
+int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle, int iNetworkThreads)
 {
 	std::string sWindowTitle;
 	if (sTitle.size()) {
@@ -69,20 +68,20 @@ int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle)
 		sWindowTitle = sAppName;
 	}
 	AppLogger::CloneToCout(true);
-	if (!std::filesystem::exists(GetAppDataFolder() + APP_NAME)) {
+	if (!std::filesystem::exists(GetAppDataFolder() + sAppName)) {
 		std::error_code ec;
-		std::filesystem::create_directories(GetAppDataFolder() + APP_NAME, ec);
+		std::filesystem::create_directories(GetAppDataFolder() + sAppName, ec);
 		if (ec) {
-			Log(AppLogger::ERROR) << "Failed to create save data folder: " << GetAppDataFolder() << APP_NAME << ".\n\t" << ec.message();
+			Log(AppLogger::ERROR) << "Failed to create save data folder: " << GetAppDataFolder() << sAppName << ".\n\t" << ec.message();
 		}
 	}
 
 	{
 		RecursiveExclusiveLock lock(mtx);
-		if (jSaveData.parseFile(GetAppDataFolder() + APP_NAME + "/settings.json")) {
-			Log(AppLogger::INFO) << "Opened settings: " << GetAppDataFolder() << APP_NAME << "/settings.json";
+		if (jSaveData.parseFile(GetAppDataFolder() + sAppName + "/settings.json")) {
+			Log(AppLogger::INFO) << "Opened settings: " << GetAppDataFolder() << sAppName << "/settings.json";
 		} else {
-			Log(AppLogger::WARNING) << "Failed toopen settings: " << GetAppDataFolder() << APP_NAME << "/settings.json";
+			Log(AppLogger::WARNING) << "Failed toopen settings: " << GetAppDataFolder() << sAppName << "/settings.json";
 		}
 	}
 
@@ -171,8 +170,9 @@ int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle)
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.IniFilename = (GetAppDataFolder() + APP_NAME + "/imgui.ini").c_str();
-	Log(AppLogger::DEBUG) << "Set ImGui ini file to: " << GetAppDataFolder() << APP_NAME << "/imgui.ini";
+	std::string sIniFileName = GetAppDataFolder() + sAppName + "/imgui.ini";
+	io.IniFilename = sIniFileName.c_str();
+	Log(AppLogger::DEBUG) << "Set ImGui ini file to: " << sIniFileName;
 
 	io.Fonts->AddFontFromMemoryCompressedTTF(HackFont_compressed_data, HackFont_compressed_size, 12);
 	io.Fonts->AddFontFromMemoryCompressedTTF(HackFont_compressed_data, HackFont_compressed_size, 18);
@@ -242,7 +242,15 @@ int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle)
 	// Our state
 	ImVec4 clear_color = ImVec4(0.0, 0.0, 0.0, 1.0);
 
+	if (iNetworkThreads > 0) {
+		Network::Core(iNetworkThreads);
+	}
+
 	Init();
+
+	StartAll();
+
+	// ImGui::LoadIniSettingsFromDisk(io.IniFilename);
 
 #ifdef __EMSCRIPTEN__
 	// For an Emscripten build we are disabling file-system access, so let's not attempt to do a fopen() of the imgui.ini file.
@@ -356,7 +364,12 @@ int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle)
 	EMSCRIPTEN_MAINLOOP_END;
 #endif
 
+	StopAll();
+
+	EventHandler::ExitAll();
+
 	// Cleanup
+	ImGui::SaveIniSettingsToDisk(io.IniFilename);
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplSDL2_Shutdown();
 	ImGui::DestroyContext();
@@ -366,7 +379,7 @@ int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle)
 	SDL_Quit();
 
 	RecursiveExclusiveLock lock(mtx);
-	jSaveData.writeFile(GetAppDataFolder() + APP_NAME + "/settings.json", true);
+	jSaveData.writeFile(GetAppDataFolder() + sAppName + "/settings.json", true);
 
 	return 0;
 }
@@ -375,16 +388,12 @@ void EasyAppBase::Render()
 {
 	ImGuiIO& io = ImGui::GetIO();
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(viewport->Pos);
-	ImGui::SetNextWindowSize(viewport->Size);
-	ImGui::SetNextWindowViewport(viewport->ID);
-	ImGui::Begin("##Main", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar);
-	ImGuiID dockspace_id = 0;
-	if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
-		dockspace_id = ImGui::GetID("MyDockSpace");
-		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
-	}
 	Menu();
+	ImGui::SetNextWindowPos(viewport->WorkPos);
+	ImGui::SetNextWindowSize(viewport->WorkSize);
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::Begin("##Main", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse);
+	ImGuiID dockspace_id = 0;
 	if (bShowEasyAbout) {
 		ImGui::OpenPopup("About EasyAppBase");
 		auto size = viewport->Size;
@@ -492,20 +501,31 @@ void EasyAppBase::Render()
 		}
 		ImGui::EndPopup();
 	}
-
+	ImGui::BeginChild("MyDockSpace", ImGui::GetContentRegionAvail(), ImGuiChildFlags_FrameStyle);
+	if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
+		dockspace_id = ImGui::GetID("MyDockSpace");
+		ImGui::DockSpace(dockspace_id, ImGui::GetContentRegionAvail(), ImGuiDockNodeFlags_None);
+	}
 	auto & registry = *EasyAppBase::Registry();
 	for (auto & window : registry) {
 		bool bShow = jSaveData["show"][window.first].boolean();
 		if (window.second->BuildsOwnWindow()) {
 			window.second->Render(&bShow, dockspace_id);
 		} else {
-			if (ImGui::Begin(window.second->Title().c_str(), &bShow)) {
+			// Next window should start docked to the main window.
+			ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_FirstUseEver);
+			ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + 650, viewport->WorkPos.y + 20), ImGuiCond_FirstUseEver);
+			ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
+			ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_FirstUseEver);
+			if (bShow) {
+				ImGui::Begin(window.second->Title().c_str(), &bShow);
 				window.second->Render(&bShow, dockspace_id);
 				ImGui::End();
 			}
 		}
 		jSaveData["show"][window.first] = bShow;
 	}
+	ImGui::EndChild();
 	ImGui::End();
 }
 
@@ -537,7 +557,7 @@ void EasyAppBase::StartAll()
 
 void EasyAppBase::Menu()
 {
-	ImGui::BeginMenuBar();
+	ImGui::BeginMainMenuBar();
 
 	if (ImGui::BeginMenu("File")) {
 		if (ImGui::MenuItem("Quit")) {
@@ -631,8 +651,7 @@ void EasyAppBase::Menu()
 		ImGui::EndMenu();
 	}
 
-
-	ImGui::EndMenuBar();
+	ImGui::EndMainMenuBar();
 }
 
 
@@ -647,6 +666,6 @@ refTSEx<json::value> EasyAppBase::ExclusiveSettings(const std::string & sName)
 }
 
 void EasyAppBase::Init() {
-	// GenerateWindow<DemoWindow>();
+	GenerateWindow<DemoWindow>();
 }
 

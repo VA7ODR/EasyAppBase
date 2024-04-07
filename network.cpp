@@ -168,7 +168,7 @@ namespace Network
 	{
 		vThreads.reserve(threadCountIn - 1);
 		for(auto i = threadCountIn - 1; i >= 0; --i) {
-			vThreads.push_back(THREAD("Network::core::" + std::to_string(i), [&](int iThreadNumber)
+			vThreads.push_back(THREAD("Network::core::" + std::to_string(i), [&](std::stop_token stoken, int iThreadNumber)
 			{
 				while (!bExit) {
 					auto iEvent = EventHandlerWait({eWakeUp, eExit}, EventHandler::INFINITE);
@@ -199,8 +199,8 @@ namespace Network
 		EventHandler::Set(eExit);
 		bExit = true;
 		for(auto &thread : vThreads) {
-			thread->get_thread().request_stop();
-			thread->get_thread().join();
+			thread.get_thread().request_stop();
+			thread.get_thread().join();
 		}
 		vThreads.clear();
 	}

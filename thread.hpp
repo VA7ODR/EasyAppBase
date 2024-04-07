@@ -29,7 +29,6 @@ The official repository for this library is at https://github.com/VA7ODR/EasyApp
 #include <map>
 #include <set>
 #include <thread>
-#include <memory>
 
 #if defined _WINDOWS
 
@@ -45,51 +44,104 @@ typedef __pid_t thread_id_t;
 
 #endif
 
-class Thread : public std::enable_shared_from_this<Thread>
+class Thread
 {
 	public:
-		Thread(const std::string & sFileIn, const std::string & sFunctionIn, int iLineIn, const std::string & sNameIn) :
-			sFile(sFileIn),
-			sFunction(sFunctionIn),
-			iLine(iLineIn),
-			sName(sNameIn)
+		Thread() {}
+		Thread(const std::string & sFileIn, const std::string & sFunctionIn, int iLineIn, const std::string & sNameIn, auto __f)
 		{
-
+			std::lock_guard<std::mutex> lock(m_mutex());
+			pSelf->sName = sNameIn;
+			pSelf->sFunction = sFunctionIn;
+			pSelf->iLine = iLineIn;
+			pSelf->sFile = sFileIn;
+			pSelf->parent_id = get_thread_id();
+			start(__f);
 		}
 
-		std::shared_ptr<Thread> start(auto __f)
+		Thread(Thread && other)
 		{
-			parent_id = get_thread_id();
-			auto self = shared_from_this();
-			auto runner = [self](std::stop_token stoken, auto __f) {
+			std::lock_guard<std::mutex> lock(m_mutex());
+			pSelf = other.pSelf;
+		}
+
+		Thread & operator=(Thread && other)
+		{
+			std::lock_guard<std::mutex> lock(m_mutex());
+			pSelf = other.pSelf;
+			return *this;
+		}
+
+		~Thread()
+		{
+			std::lock_guard<std::mutex> lock(m_mutex());
+			if (pSelf && pSelf.use_count() == 1 && pSelf->m_thread.joinable()) {
+				pSelf->m_thread.request_stop();
+				pSelf->m_thread.join();
+			}
+		}
+
+		Thread& start(auto __f)
+		{
+			auto runner = [](std::stop_token stoken, std::shared_ptr<Data> pSelf, auto __f) {
 				{
 					std::lock_guard<std::mutex> lock(m_mutex());
-					self->id = get_thread_id();
-					m_threads()[self->id] = self.get();
-					if (m_threads().find(self->parent_id) != m_threads().end()) {
-						m_threads()[self->parent_id]->children.insert(self->id);
+					pSelf->id = get_thread_id();
+					m_threads()[pSelf->id] = pSelf.get();
+					if (m_threads().find(pSelf->parent_id) != m_threads().end()) {
+						m_threads()[pSelf->parent_id]->children.insert(pSelf->id);
 					} else {
-						main_thread_children().insert(self->id);
+						main_thread_children().insert(pSelf->id);
 					}
 				}
-				__f();
+				__f(stoken);
 				{
 					std::lock_guard<std::mutex> lock(m_mutex());
-					m_threads().erase(self->id);
-					if (m_threads().find(self->parent_id) != m_threads().end()) {
-						m_threads()[self->parent_id]->children.erase(self->id);
+					m_threads().erase(pSelf->id);
+					if (m_threads().find(pSelf->parent_id) != m_threads().end()) {
+						m_threads()[pSelf->parent_id]->children.erase(pSelf->id);
 					} else {
-						main_thread_children().erase(self->id);
+						main_thread_children().erase(pSelf->id);
 					}
+					pSelf = nullptr;
 				}
 			};
-			m_thread = std::jthread(runner, __f);
-			return self;
+			pSelf->m_thread = std::jthread(runner, pSelf, __f);
+			return *this;
 		}
 
 		std::jthread & get_thread();
 
+		void request_stop()
+		{
+			pSelf->m_thread.request_stop();
+		}
+
+		bool joinable()
+		{
+			return pSelf->m_thread.joinable();
+		}
+
+		void join()
+		{
+			if (pSelf->m_thread.joinable()) {
+
+			}
+			pSelf->m_thread.join();
+		}
+
 		static thread_id_t main_thread_id();
+
+		struct Data {
+			std::string sName;
+			std::string sFile;
+			std::string sFunction;
+			int iLine = 0;
+			thread_id_t id = 0;
+			thread_id_t parent_id = 0;
+			std::set<thread_id_t> children;
+			std::jthread m_thread;
+		};
 
 		struct MapItem
 		{
@@ -103,7 +155,7 @@ class Thread : public std::enable_shared_from_this<Thread>
 
 			MapItem();
 
-			MapItem(const Thread & thread);
+			MapItem(const Data & thread);
 
 			bool operator<(const MapItem & other) const;
 		};
@@ -112,22 +164,17 @@ class Thread : public std::enable_shared_from_this<Thread>
 		static void log_map(AppLogger::LogLevel levelIn, const std::string &sFileIn, const std::string sFunctionIn, int iLineIn);
 
 	private:
-		std::string sName;
-		std::string sFile;
-		std::string sFunction;
-		int iLine = 0;
-		thread_id_t id = 0;
-		thread_id_t parent_id = 0;
-		std::set<thread_id_t> children;
-		std::jthread m_thread;
+		std::shared_ptr<Data> pSelf = std::make_shared<Data>();
 
 		static std::mutex & m_mutex();
 
 		static std::set<thread_id_t> & main_thread_children();
 
-		static std::map<thread_id_t, Thread*> & m_threads();
+		static std::map<thread_id_t, Data*> & m_threads();
+
+
 };
 
-#define THREAD(sName, func, ...) std::make_shared<Thread>(SOURCE_FILE, __FUNCTION__, __LINE__, sName)->start(std::bind(func, __VA_ARGS__))
+#define THREAD(sName, func, ...) Thread(SOURCE_FILE, __FUNCTION__, __LINE__, sName, std::bind(func, std::placeholders::_1 __VA_OPT__(,) __VA_ARGS__))
 #define LOG_THREAD_MAP(level) Thread::log_map(level, SOURCE_FILE, __FUNCTION__, __LINE__)
 

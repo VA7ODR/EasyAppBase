@@ -38,9 +38,9 @@ std::set<thread_id_t> &Thread::main_thread_children()
 	return vRet;
 }
 
-std::map<thread_id_t, Thread *> &Thread::m_threads()
+std::map<thread_id_t, Thread::Data*> &Thread::m_threads()
 {
-	static std::map<thread_id_t, Thread*> vRet;
+	static std::map<thread_id_t, Thread::Data*> vRet;
 	return vRet;
 }
 
@@ -63,7 +63,7 @@ GetMainThreadId get_main_thread_id;
 
 std::jthread &Thread::get_thread()
 {
-	return m_thread;
+	return pSelf->m_thread;
 }
 
 thread_id_t Thread::main_thread_id()
@@ -103,7 +103,7 @@ Thread::MapItem::MapItem()
 	}
 }
 
-Thread::MapItem::MapItem(const Thread &thread)
+Thread::MapItem::MapItem(const Thread::Data &thread)
 {
 	sName = thread.sName;
 	sFile = thread.sFile;

@@ -66,7 +66,7 @@ namespace Network
 			net::io_context ioc;
 			EventHandler::Event eWakeUp = EventHandler::CreateEvent("HTTP::Core::WakeUp", EventHandler::auto_reset);
 			EventHandler::Event eExit = EventHandler::CreateEvent("HTTP::Core::Exit", EventHandler::manual_reset);
-			std::vector<std::shared_ptr<Thread>> vThreads;
+			std::vector<Thread> vThreads;
 			std::string sCertificates;
 			bool bExit = false;
 	};

@@ -54,7 +54,7 @@ class EasyAppBase
 		const std::string & Name() const { return sName; }
 		const std::string & Title() const { return sTitle; }
 
-		static int Run(const std::string & sAppName, const std::string & sTitle = "");
+		static int Run(const std::string & sAppName, const std::string & sTitle = "", int iNetworkThreads = 0);
 		static void Render();
 
 		refTSEx<json::value> ExclusiveSettings();
@@ -98,8 +98,6 @@ class EasyAppBase
 
 		std::string sName;
 		std::string sTitle;
-
-
 };
 
 class DemoWindow : public EasyAppBase

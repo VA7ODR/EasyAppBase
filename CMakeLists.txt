@@ -28,6 +28,13 @@ project(EasyAppBase LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(ADDRESSSANITIZER "Use AddressSanitizer" OFF)
+if (ADDRESSSANITIZER)
+         set(ADDRESSSANITIZERFLAGS " -fsanitize=address -fno-omit-frame-pointer ")
+endif(ADDRESSSANITIZER)
+set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_INIT} ${ADDRESSSANITIZERFLAGS} -fPIC -rdynamic ")
+
+
 set(Boost_USE_STATIC_LIBS	ON) # only find static libs
 set(Boost_USE_MULTITHREADED     ON)
 set(Boost_USE_STATIC_RUNTIME    OFF)
@@ -38,7 +45,7 @@ find_package(Boost REQUIRED filesystem system url)
 find_package(OpenGL REQUIRED)
 find_package(OpenSSL REQUIRED)
 
-add_compile_definitions(APP_NAME="${PROJECT_NAME}" SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+add_compile_definitions(SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 
 add_subdirectory(json_document)
 
@@ -54,6 +61,7 @@ if(TARGET SDL2::SDL2main)
     target_link_libraries(easy_app_base PRIVATE SDL2::SDL2main)
 endif()
 
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} copy_this_as_your_main.cpp
+    copy_this_as_your_CMakeLists.txt)
 target_link_libraries(${PROJECT_NAME} PRIVATE easy_app_base)
 
