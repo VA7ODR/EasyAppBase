@@ -40,7 +40,7 @@ class SampleWindow : public EasyAppBase
 		SampleWindow() : EasyAppBase("sample", "Sample Window") {}
 
 		virtual void Start() override; // Optional.  This is where you would start threads, load things, etc. If it takes a long time, use a thread with THREAD instead of std::thread.
-		virtual void Render(bool * bShow, ImGuiID dockspace_id) override;  // REQUIRED.  This is where you would render your window.
+		virtual void Render(bool * bShow) override;  // REQUIRED.  This is where you would render your window.
 		virtual void Stop() override; // This is where you would clean up, like joining threads.
 		virtual bool BuildsOwnWindow() override { return false; }  // Set this to true, if you want to have tighter control over the ImGui::Begin and ImGui::End calls. If set to False, EasyAppBase will handle it for you.
 
@@ -102,7 +102,7 @@ void SampleWindow::Stop()
 }
 
 // Sample Window Render
-void SampleWindow::Render(bool * bShow, ImGuiID dockspace_id)
+void SampleWindow::Render(bool * bShow)
 {
 	ImGui::Text("Sample Window");
 	ImGui::Text("Button Count: %d", iButtonCount);
@@ -112,13 +112,33 @@ void SampleWindow::Render(bool * bShow, ImGuiID dockspace_id)
 	}
 }
 
+void MainRenderer()
+{
+	ImGui::Text("Hello, World!");
+}
+
 // Main code
 int main(int, char**)
 {
 	// Register the Sample Window
-	EasyAppBase::GenerateWindow<SampleWindow>();
+	// EasyAppBase::GenerateWindow<SampleWindow>();
+
+	// Set the Main Renderer
+	EasyAppBase::SetMainRenderer([&]() { MainRenderer(); });
+
+	// Uncomment the following lines to enable/disable features
+
+	// EasyAppBase::DisableDemo(true); // Uncomment this to disable the ImGui Demo Window
+
+	// EasyAppBase::DisableDocking(true); // Uncomment this to disable docking (see https://github.com/ocornut/imgui/issues/2109 for details)
+
+	// EasyAppBase::DisableViewports(true); // Uncomment this to disable viewports (see https://github.com/ocornut/imgui/issues/1542 for details)
+
+	// EasyAppBase::DisableGUI(true); // Uncomment this and the following line to disable the GUI entirely
+	// Thread killEasyAppThread = THREAD("Kill Thread", [](std::stop_token /*stoken*/) { std::this_thread::sleep_for(5s); EasyAppBase::ExitAll(); }); // Uncomment this example to exit the application after 5 seconds when no gui is present.
+
+	// EasyAppBase::SetNetworkThreads(4); // Uncomment this to set the number of network threads to 4. 0 or less is no network. Default is 0.
 
 	// Run the application
-	return EasyAppBase::Run(APP_NAME, APP_NAME " v" APP_VERSION_STRING, 4);
+	return EasyAppBase::Run(APP_NAME, APP_NAME " v" APP_VERSION_STRING);
 }
-

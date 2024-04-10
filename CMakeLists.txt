@@ -58,8 +58,3 @@ add_library(imgui STATIC imgui/imgui.cpp imgui/imgui.h imgui/imgui_demo.cpp imgu
 
 add_library(easy_app_base STATIC easyappbase.cpp easyappbase.hpp app_logger.cpp app_logger.hpp hackfont.cpp utils.cpp utils.hpp app_logger.cpp app_logger.hpp network.cpp network.hpp thread.cpp thread.hpp eventhandler.cpp eventhandler.hpp )
 target_link_libraries(easy_app_base PRIVATE json_document imgui OpenSSL::SSL OpenSSL::Crypto ${SDL2_LIBRARIES} OpenGL::GL Boost::filesystem Boost::system Boost::url)
-
-add_executable(${PROJECT_NAME} copy_this_as_your_main.cpp
-    copy_this_as_your_CMakeLists.txt)
-target_link_libraries(${PROJECT_NAME} PRIVATE easy_app_base)
-

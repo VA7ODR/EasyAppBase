@@ -166,26 +166,29 @@ namespace Network
 		ioc(threadCountIn),
 		sCertificates(getCertificates())
 	{
-		vThreads.reserve(threadCountIn - 1);
-		for(auto i = threadCountIn - 1; i >= 0; --i) {
-			vThreads.push_back(THREAD("Network::core::" + std::to_string(i), [&](std::stop_token stoken, int iThreadNumber)
-			{
-				while (!bExit) {
-					auto iEvent = EventHandlerWait({eWakeUp, eExit}, EventHandler::INFINITE);
-					switch (iEvent) {
-						case 0:
-							if (ioc.stopped()) {
-								ioc.restart();
-							}
-							ioc.run();
-							break;
+		if (threadCountIn) {
+			Log(AppLogger::DEBUG) << "Network::CoreBase::CoreBase " << threadCountIn << std::endl;
+			vThreads.reserve(threadCountIn);
+			for(auto i = threadCountIn - 1; i >= 0; --i) {
+				vThreads.push_back(THREAD("Network::core::" + std::to_string(i), [&](std::stop_token stoken, int iThreadNumber)
+				{
+					while (!bExit) {
+						auto iEvent = EventHandlerWait({eWakeUp, eExit}, EventHandler::INFINITE);
+						switch (iEvent) {
+							case 0:
+								if (ioc.stopped()) {
+									ioc.restart();
+								}
+								ioc.run();
+								break;
 
-						default:
-							bExit = true;
-							break;
+							default:
+								bExit = true;
+								break;
+						}
 					}
-				}
-			}, i));
+				}, i));
+			}
 		}
 	}
 
@@ -196,7 +199,7 @@ namespace Network
 
 	void CoreBase::Exit()
 	{
-		EventHandler::Set(eExit);
+		EventHandlerSet(eExit);
 		bExit = true;
 		for(auto &thread : vThreads) {
 			thread.get_thread().request_stop();
@@ -207,7 +210,7 @@ namespace Network
 
 	void CoreBase::WakeUp()
 	{
-		EventHandler::Set(eWakeUp);
+		EventHandlerSet(eWakeUp);
 	}
 
 	boost::asio::io_context &CoreBase::IOContext()
@@ -220,17 +223,23 @@ namespace Network
 		return sCertificates;
 	}
 
-	core_t & Core(int iThreadCountInit)
+	core_t & Core(int iThreadCountInit) // calling this with <= 0 will not create an instance if one does not exist. Only the first call to this > 0 will create the instance.
 	{
 		static std::mutex initMutex;
 		std::lock_guard<std::mutex> lock(initMutex);
-		static core_t core = std::make_shared<CoreBase>(iThreadCountInit);
+		static core_t core = nullptr;
+		if (!core && iThreadCountInit > 0) {
+			core = std::make_shared<CoreBase>(iThreadCountInit);
+		}
 		return core;
 	}
 
-	core_t & Init(int iThreadCountInit)
+	void ExitAll()
 	{
-		return Core(iThreadCountInit);
+		auto core = Core();
+		if (core) {
+			core->Exit();
+		}
 	}
 
 	namespace HTTP

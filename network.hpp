@@ -72,8 +72,8 @@ namespace Network
 	};
 
 	using core_t = std::shared_ptr<CoreBase>;
-	core_t & Core(int iThreadCountInit = 1);
-	core_t & Init(int threadCountIn);
+	core_t & Core(int iThreadCountInit = 0);  // calling this with <= 0 will not create an instance if one does not exist. Only the first call to this > 0 will create the instance.
+	void ExitAll();
 
 	namespace HTTP
 	{

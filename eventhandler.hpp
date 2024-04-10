@@ -78,3 +78,5 @@ namespace EventHandler
 } // EventHandler
 
 #define EventHandlerWait(...) EventHandler::Wait(SOURCE_FILE, __func__, __LINE__, __VA_ARGS__)
+#define EventHandlerSet(X) EventHandler::Set(X)
+#define EventHandlerReset(X) EventHandler::Reset(X)

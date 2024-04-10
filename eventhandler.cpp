@@ -211,7 +211,7 @@ namespace EventHandler
 			}
 			if (timeout == std::chrono::milliseconds::max()) {
 				cv().wait(lck, [&vEvents] { if (ExitEvent()->bValue) return true; for (auto & e : vEvents) { if (e->bValue) { return true; } } return false; });
-			} else {
+			} else if (timeout.count() > 0) {
 				bool bRet = cv().wait_for(lck, timeout, [&vEvents] { if (ExitEvent()->bValue) return true; for (auto & e : vEvents) { if (e->bValue) { return true; } } return false; });
 				if (!bRet) {
 					return TIMEOUT;
@@ -225,8 +225,11 @@ namespace EventHandler
 					return i;
 				}
 			}
+			if (timeout.count() == 0) {
+				break;
+			}
 		}
-		return EXIT_ALL;
+		return TIMEOUT;
 	}
 
 	void Set(Event e)

@@ -47,15 +47,21 @@ class EasyAppBase
 		virtual ~EasyAppBase() {}
 
 		virtual void Start() {};
-		virtual void Render(bool * bShow, ImGuiID dockspace_id) = 0;
+		virtual void Render(bool * bShow) = 0;
 		virtual void Stop() {};
 		virtual bool BuildsOwnWindow() { return false; }
 
 		const std::string & Name() const { return sName; }
 		const std::string & Title() const { return sTitle; }
 
-		static int Run(const std::string & sAppName, const std::string & sTitle = "", int iNetworkThreads = 0);
-		static void Render();
+		static void DisableDemo(bool bDisable);
+		static void DisableDocking(bool bDisable);
+		static void DisableViewports(bool bDisable);
+		static void DisableGUI(bool bDisable);
+		static void SetNetworkThreads(int iSetTo);
+
+		static int Run(const std::string & sAppName, const std::string & sTitle = "");
+		static void SetMainRenderer(std::function<void ()> render);
 
 		refTSEx<json::value> ExclusiveSettings();
 
@@ -74,21 +80,32 @@ class EasyAppBase
 			return it->second;
 		}
 
+		static void ExitAll()
+		{
+			EventHandlerSet(eQuit);
+		}
+
 	protected:
 		static refTSEx<std::map<std::string, std::shared_ptr<EasyAppBase>>> Registry() { return {registry, mtx}; }
 
 	private:
-		static void Init();
-		static void Menu();
 		static void StartAll();
+		static void Render();
+		static void Menu();
 		static void StopAll();
 
 		static refTSEx<json::value> ExclusiveSettings(const std::string & sName);
 
 		static refTSSh<json::value> SharedSettings(const std::string & sName);
 
-		static bool bQuit;
+		static EventHandler::Event eQuit;
 		static bool bShowEasyAbout;
+
+		static bool bDisableDemo;
+		static bool bDisableDocking;
+		static bool bDisableViewports;
+		static bool bDisableGUI;
+		static int iNetworkThreads;
 
 		static SharedRecursiveMutex mtx;
 		static json::document jSaveData;
@@ -98,6 +115,8 @@ class EasyAppBase
 
 		std::string sName;
 		std::string sTitle;
+
+		static std::function<void()> main_render;
 };
 
 class DemoWindow : public EasyAppBase
@@ -106,7 +125,7 @@ class DemoWindow : public EasyAppBase
 		DemoWindow() : EasyAppBase("demo_window", "ImGui Demo Window") {}
 		bool BuildsOwnWindow() override { return true; }
 
-		void Render(bool * bShow, ImGuiID dockspace_id) override
+		void Render(bool * bShow) override
 		{
 			if (*bShow) {
 				ImGui::ShowDemoWindow(bShow);
