@@ -15,7 +15,8 @@ Create an empty folder for your app:
 mkdir YourApp
 cd YourApp
 git init
-git submodule add --recursive https://github.com/VA7ODR/EasyAppBase
+git submodule add https://github.com/VA7ODR/EasyAppBase
+git submodule update --init --recursive
 ```
 
 Next, copy 2 files from the EasyAppBase folder:
