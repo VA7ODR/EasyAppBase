@@ -7,7 +7,7 @@ project(YourApp LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_compile_definitions(APP_NAME="${PROJECT_NAME}" APP_VERSION_STRING="1.0.0)
+add_compile_definitions(APP_NAME="${PROJECT_NAME}" APP_VERSION_STRING="1.0.0")
 
 add_subdirectory(EasyAppBase)
 include_directories(EasyAppBase EasyAppBase/shared_recursive_mutex EasyAppBase/imgui EasyAppBase/imgui/backends EasyAppBase/json_document EasyAppBase/json_document/ArbitraryOrderMap EasyAppBase/json_document/SDString)
