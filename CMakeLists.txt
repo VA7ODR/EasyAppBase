@@ -39,13 +39,14 @@ set(Boost_USE_STATIC_LIBS	ON) # only find static libs
 set(Boost_USE_MULTITHREADED     ON)
 set(Boost_USE_STATIC_RUNTIME    OFF)
 
-find_package(SDL2 REQUIRED CONFIG REQUIRED COMPONENTS SDL2)
-find_package(SDL2 REQUIRED CONFIG COMPONENTS SDL2main)
+find_package(SDL2 REQUIRED)
 find_package(Boost REQUIRED filesystem system url)
 find_package(OpenGL REQUIRED)
 find_package(OpenSSL REQUIRED)
 
+if (NOT SOURCE_DIR_DEFINITION)
 add_compile_definitions(SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+endif (NOT SOURCE_DIR_DEFINITION)
 
 add_subdirectory(json_document)
 
@@ -56,10 +57,7 @@ include_directories(json_document shared_recursive_mutex imgui imgui/backends ${
 add_library(imgui STATIC imgui/imgui.cpp imgui/imgui.h imgui/imgui_demo.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_widgets.cpp imgui/backends/imgui_impl_sdl2.cpp imgui/backends/imgui_impl_opengl3.cpp)
 
 add_library(easy_app_base STATIC easyappbase.cpp easyappbase.hpp app_logger.cpp app_logger.hpp hackfont.cpp utils.cpp utils.hpp app_logger.cpp app_logger.hpp network.cpp network.hpp thread.cpp thread.hpp eventhandler.cpp eventhandler.hpp )
-target_link_libraries(easy_app_base PRIVATE json_document imgui OpenSSL::SSL OpenSSL::Crypto SDL2::SDL2 OpenGL::GL Boost::filesystem Boost::system Boost::url)
-if(TARGET SDL2::SDL2main)
-    target_link_libraries(easy_app_base PRIVATE SDL2::SDL2main)
-endif()
+target_link_libraries(easy_app_base PRIVATE json_document imgui OpenSSL::SSL OpenSSL::Crypto ${SDL2_LIBRARIES} OpenGL::GL Boost::filesystem Boost::system Boost::url)
 
 add_executable(${PROJECT_NAME} copy_this_as_your_main.cpp
     copy_this_as_your_CMakeLists.txt)
