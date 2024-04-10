@@ -7,11 +7,27 @@ project(YourApp LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_compile_definitions(APP_NAME="${PROJECT_NAME}" APP_VERSION_STRING="1.0.0")
+find_package(SDL2 REQUIRED)
+find_package(Boost REQUIRED filesystem system url)
+find_package(OpenGL REQUIRED)
+find_package(OpenSSL REQUIRED)
+
+set (SOURCE_DIR_DEFINITION SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+
+add_compile_definitions(APP_NAME="${PROJECT_NAME}" APP_VERSION_STRING="1.0.0" ${SOURCE_DIR_DEFINITION})
 
 add_subdirectory(EasyAppBase)
-include_directories(EasyAppBase EasyAppBase/shared_recursive_mutex EasyAppBase/imgui EasyAppBase/imgui/backends EasyAppBase/json_document EasyAppBase/json_document/ArbitraryOrderMap EasyAppBase/json_document/SDString)
+include_directories(EasyAppBase
+    EasyAppBase/shared_recursive_mutex
+    EasyAppBase/imgui
+    EasyAppBase/imgui/backends
+    EasyAppBase/json_document
+    EasyAppBase/json_document/ArbitraryOrderMap
+    EasyAppBase/json_document/SDString
+    ${SDL2_INCLUDE_DIRS}
+    ${OPENGL_INCLUDE_DIR}
+    ${OPENSSL_INCLUDE_DIR}
+)
 
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE easy_app_base)
-
