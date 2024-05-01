@@ -25,6 +25,7 @@ The official repository for this library is at https://github.com/VA7ODR/EasyApp
 
 #include "easyappbase.hpp"
 #include <filesystem>
+#include <ranges>
 
 using namespace std::chrono_literals;
 
@@ -56,7 +57,7 @@ bool EasyAppBase::bDisableViewports = false;
 bool EasyAppBase::bDisableGUI = false;
 int EasyAppBase::iNetworkThreads = 0;
 
-std::function<void()> EasyAppBase::main_render = nullptr;
+std::function<void()> EasyAppBase::mainRenderer = nullptr;
 
 SharedRecursiveMutex EasyAppBase::mtx;
 json::document EasyAppBase::jSaveData;
@@ -71,6 +72,11 @@ EasyAppBase::EasyAppBase(const std::string & sNameIn, const std::string & sTitle
 EasyAppBase::EasyAppBase(std::string && sNameIn, std::string && sTitleIn) : sName(std::move(sNameIn)), sTitle(std::move(sTitleIn))
 {
 
+}
+
+bool EasyAppBase::SettingsTreeEntry::operator<(const SettingsTreeEntry & rhs) const
+{
+	return sName < rhs.sName;
 }
 
 void EasyAppBase::DisableDemo(bool bDisable)
@@ -465,8 +471,8 @@ void EasyAppBase::Render()
 	ImGui::Begin("##Main", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse);
 	ImGui::PopStyleVar(2);
 
-	if (main_render) {
-		main_render();
+	if (mainRenderer) {
+		mainRenderer();
 	}
 
 	if (bShowEasyAbout) {
@@ -615,7 +621,7 @@ void EasyAppBase::Render()
 void EasyAppBase::SetMainRenderer(std::function<void ()> render)
 {
 	RecursiveExclusiveLock lock(mtx);
-	main_render = std::move(render);
+	mainRenderer = std::move(render);
 }
 
 refTSEx<json::value> EasyAppBase::ExclusiveSettings() const
@@ -628,19 +634,23 @@ refTSEx<json::value> EasyAppBase::SharedSettings() const
 	return ExclusiveSettings(sName);
 }
 
+void EasyAppBase::ExitAll() {
+	EventHandlerSet(eQuit);
+}
+
 void EasyAppBase::StopAll()
 {
 	auto & registry = *EasyAppBase::Registry();
-	for (auto & window : registry) {
-		window.second->Stop();
+	for (auto & window : registry | std::views::values) {
+		window->Stop();
 	}
 }
 
 void EasyAppBase::StartAll()
 {
 	auto & registry = *EasyAppBase::Registry();
-	for (auto & window : registry) {
-		window.second->Start();
+	for (auto & window : registry | std::views::values) {
+		window->Start();
 	}
 }
 
@@ -739,8 +749,8 @@ void EasyAppBase::Menu()
 		if (ImGui::MenuItem("About EasyAppBase...", "")) {
 			bShowEasyAbout = true;
 		}
-		for (auto & window : registry) {
-			if (ImGui::MenuItem(("About " + window.second->Title() + "...").c_str(), "")) {
+		for (auto & window : registry | std::views::values) {
+			if (ImGui::MenuItem(("About " + window->Title() + "...").c_str(), "")) {
 				bShowEasyAbout = true;
 			}
 		}

@@ -45,13 +45,25 @@
 class EasyAppBase
 {
 	public:
-		EasyAppBase(const std::string & sNameIn, const std::string & sTitleIn);
+	class SettingsTreeEntry
+	{
+		public:
+		SettingsTreeEntry() = default;
+		~SettingsTreeEntry() = default;
+
+		std::string sName;
+		std::set<SettingsTreeEntry> children;
+		bool operator<(const SettingsTreeEntry & rhs) const;
+	};
+
+	EasyAppBase(const std::string & sNameIn, const std::string & sTitleIn);
 		EasyAppBase(std::string && sNameIn, std::string && sTitleIn);
 		virtual ~EasyAppBase() = default;
 
 		virtual void Start() {};
 		virtual void Render(bool * bShow) = 0;
 		virtual void Stop() {};
+
 		virtual bool BuildsOwnWindow() { return false; }
 
 		[[nodiscard]] const std::string & Name() const { return sName; }
@@ -66,9 +78,8 @@ class EasyAppBase
 		static int Run(const std::string & sAppName, const std::string & sTitle = "");
 		static void SetMainRenderer(std::function<void ()> render);
 
-		refTSEx<json::value> ExclusiveSettings() const;
-
-		refTSEx<json::value> SharedSettings() const;
+		[[nodiscard]] refTSEx<json::value> ExclusiveSettings() const;
+		[[nodiscard]] refTSEx<json::value> SharedSettings() const;
 
 		template <typename T>
 		static std::shared_ptr<EasyAppBase> GenerateWindow()
@@ -83,10 +94,7 @@ class EasyAppBase
 			return it->second;
 		}
 
-		static void ExitAll()
-		{
-			EventHandlerSet(eQuit);
-		}
+		static void ExitAll();
 
 	protected:
 		static refTSEx<std::map<std::string, std::shared_ptr<EasyAppBase>>> Registry() { return {registry, mtx}; }
@@ -119,7 +127,7 @@ class EasyAppBase
 		std::string sName;
 		std::string sTitle;
 
-		static std::function<void()> main_render;
+		static std::function<void()> mainRenderer;
 };
 
 class DemoWindow : public EasyAppBase

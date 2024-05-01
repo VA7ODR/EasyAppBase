@@ -66,5 +66,143 @@ std::string GetAppDataFolder()
 #endif
 }
 
+void ShowJsonWindow(const std::string & sTitle, json::value & jData, bool & bShow)
+{
+	ImGui::Begin(sTitle.c_str(), &bShow);
+	// if (ImGui::TreeNode("Tree view")) {
+	static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
 
+	static ImGuiTreeNodeFlags tree_node_flags = ImGuiTreeNodeFlags_SpanAllColumns;
+	// 	ImGui::CheckboxFlags("ImGuiTreeNodeFlags_SpanFullWidth", &tree_node_flags, ImGuiTreeNodeFlags_SpanFullWidth);
+	// 	ImGui::CheckboxFlags("ImGuiTreeNodeFlags_SpanAllColumns", &tree_node_flags, ImGuiTreeNodeFlags_SpanAllColumns);
+	ImGui::Text("Right-click field name or value to copy it to the clipboard.");
+	if (ImGui::BeginTable("3ways", 3, flags)) {
+		// The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
+		ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableHeadersRow();
+
+		std::function<void(const std::string &, json::value &)> recursiveLambda = [&recursiveLambda](const std::string & sName, json::value & jValue) -> void
+		{
+			switch (jValue.isA()) {
+				case json::JSON_VOID:
+					return;
+
+				case json::JSON_NULL:
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn();
+					ImGui::TreeNodeEx(sName.c_str(), tree_node_flags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+					if (ImGui::IsItemClicked(1)) {
+						ImGui::SetClipboardText(sName.c_str());
+					}
+					ImGui::TableNextColumn();
+					ImGui::Text("NULL");
+					if (ImGui::IsItemClicked(1)) {
+						ImGui::SetClipboardText("NULL");
+					}
+					ImGui::TableNextColumn();
+					ImGui::Text("null");
+					break;
+
+				case json::JSON_BOOLEAN:
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn();
+					ImGui::TreeNodeEx(sName.c_str(), tree_node_flags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+					if (ImGui::IsItemClicked(1)) {
+						ImGui::SetClipboardText(sName.c_str());
+					}
+					ImGui::TableNextColumn();
+					ImGui::Text(jValue.boolean() ? "true" : "false");
+					if (ImGui::IsItemClicked(1)) {
+						ImGui::SetClipboardText(jValue.boolean() ? "true" : "false");
+					}
+					ImGui::TableNextColumn();
+					ImGui::Text("bool");
+					break;
+
+				case json::JSON_NUMBER:
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn();
+					ImGui::TreeNodeEx(sName.c_str(), tree_node_flags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+					if (ImGui::IsItemClicked(1)) {
+						ImGui::SetClipboardText(sName.c_str());
+					}
+					ImGui::TableNextColumn();
+					ImGui::Text("%s", jValue.c_str());
+					if (ImGui::IsItemClicked(1)) {
+						ImGui::SetClipboardText(jValue.c_str());
+					}
+					ImGui::TableNextColumn();
+					ImGui::Text("number");
+					break;
+
+				case json::JSON_STRING:
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn();
+					ImGui::TreeNodeEx(sName.c_str(), tree_node_flags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+					if (ImGui::IsItemClicked(1)) {
+						ImGui::SetClipboardText(sName.c_str());
+					}
+					ImGui::TableNextColumn();
+					ImGui::Text("%s", jValue.c_str());
+					if (ImGui::IsItemClicked(1)) {
+						ImGui::SetClipboardText(jValue.c_str());
+					}
+					ImGui::TableNextColumn();
+					ImGui::Text("string");
+					break;
+
+				case json::JSON_OBJECT:
+				{
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn();
+					bool open = ImGui::TreeNodeEx(sName.c_str(), tree_node_flags | ImGuiTreeNodeFlags_DefaultOpen);
+					if (ImGui::IsItemClicked(1)) {
+						ImGui::SetClipboardText(sName.c_str());
+					}
+					ImGui::TableNextColumn();
+					ImGui::TextDisabled("--");
+					ImGui::TableNextColumn();
+					ImGui::Text("object");
+					if (open) {
+						for (auto & sub : jValue) {
+							recursiveLambda(sub.key(), sub);
+						}
+						ImGui::TreePop();
+					}
+					break;
+				}
+
+				case json::JSON_ARRAY:
+				{
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn();
+					bool open = ImGui::TreeNodeEx(sName.c_str(), tree_node_flags | ImGuiTreeNodeFlags_DefaultOpen);
+					if (ImGui::IsItemClicked(1)) {
+						ImGui::SetClipboardText(sName.c_str());
+					}
+					ImGui::TableNextColumn();
+					ImGui::TextDisabled("--");
+					ImGui::TableNextColumn();
+					ImGui::Text("array");
+					if (open) {
+						size_t iIndex = 0;
+						for (auto & sub : jValue) {
+							recursiveLambda(std::to_string(iIndex++), sub);
+						}
+						ImGui::TreePop();
+					}
+					break;
+				}
+			}
+		};
+
+		recursiveLambda(sTitle.c_str(), jData);
+		ImGui::EndTable();
+	}
+	// 	ImGui::TreePop();
+	// }
+	ImGui::End();
+}
 

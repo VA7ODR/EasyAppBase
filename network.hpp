@@ -48,6 +48,24 @@ using namespace std::chrono_literals;
 
 namespace Network
 {
+	template <typename T>
+	T swapEndianness(T value)
+	{
+		static_assert(std::is_arithmetic<T>::value, "Only arithmatic types are supported");
+		union {
+			T value;
+			uint8_t bytes[sizeof(T)];
+		} src, dest;
+
+		src.value = value;
+
+		for (size_t i = 0; i < sizeof(T); ++i) {
+			dest.bytes[i] = src.bytes[sizeof(T) - i - 1];
+		}
+
+		return dest.value;
+	}
+
 	std::string URLEncode(const std::string & in);
 	std::string URLDecode(const std::string & in);
 

@@ -238,6 +238,9 @@ void ShowJson(const std::string & sTitle, jsonType & jData, bool & bShow)
 	}
 }
 
+void ShowJsonWindow(const std::string & sTitle, json::value & jData, bool & bShow);
+std::string PrettyHex(const std::vector<unsigned char> &in);
+
 template <class jsonType = json::value>
 jsonType ImVec4ToJSONArray(const ImVec4 & in)
 {
