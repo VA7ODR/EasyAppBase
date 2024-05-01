@@ -25,7 +25,7 @@ The official repository for this library is at https://github.com/VA7ODR/EasyApp
 
 // File: 'fonts/Hack-Regular.ttf' (383104 bytes)
 // Exported using binary_to_compressed_c.cpp
-extern const unsigned int HackFont_compressed_size = 220265;
+extern const int HackFont_compressed_size = 220265;
 extern const unsigned int HackFont_compressed_data[220268/4] =
 {
     0x0000bc57, 0x00000000, 0x80d80500, 0x00000400, 0x00010025, 0x82100000, 0x00043e04, 0x55534700, 0x292d2642, 0x0100005e, 0x0500000c, 0x2f534fc0, 

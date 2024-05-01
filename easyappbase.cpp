@@ -42,9 +42,10 @@ using namespace std::chrono_literals;
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_opengl3.h"
-#include <stdio.h>
+#include <cstdio>
+#include <utility>
 
-extern const unsigned int HackFont_compressed_size;
+extern const int HackFont_compressed_size;
 extern const unsigned int HackFont_compressed_data[];
 
 EventHandler::Event EasyAppBase::eQuit = EventHandler::CreateEvent("Application Quit", EventHandler::manual_reset);
@@ -62,7 +63,12 @@ json::document EasyAppBase::jSaveData;
 SDL_Window* EasyAppBase::window = nullptr;
 std::map<std::string, std::shared_ptr<EasyAppBase>> EasyAppBase::registry;
 
-EasyAppBase::EasyAppBase(const std::string & sNameIn, const std::string sTitleIn) : sName(sNameIn), sTitle(sTitleIn)
+EasyAppBase::EasyAppBase(const std::string & sNameIn, const std::string & sTitleIn) : sName(sNameIn), sTitle(sTitleIn)
+{
+
+}
+
+EasyAppBase::EasyAppBase(std::string && sNameIn, std::string && sTitleIn) : sName(std::move(sNameIn)), sTitle(std::move(sTitleIn))
 {
 
 }
@@ -98,7 +104,7 @@ int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle)
 		AppLogger::CloneToCout(true);
 	}
 	std::string sWindowTitle;
-	if (sTitle.size()) {
+	if (!sTitle.empty()) {
 		sWindowTitle = sTitle;
 	} else {
 		sWindowTitle = sAppName;
@@ -167,32 +173,32 @@ int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle)
 		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-		uint32_t iX = SDL_WINDOWPOS_CENTERED;
-		uint32_t iY = SDL_WINDOWPOS_CENTERED;
-		uint32_t iW = 1280;
-		uint32_t iH = 720;
+		int iX = SDL_WINDOWPOS_CENTERED;
+		int iY = SDL_WINDOWPOS_CENTERED;
+		int iW = 1280;
+		int iH = 720;
 
-		SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+		auto window_flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 		{
 			RecursiveSharedLock lock(mtx);
 			if (jSaveData["main_window"].exists("x")) {
-				iX = jSaveData["main_window"]["x"]._uint32();
+				iX = jSaveData["main_window"]["x"]._int();
 			}
 			if (jSaveData["main_window"].exists("y")) {
-				iY = jSaveData["main_window"]["y"]._uint32();
+				iY = jSaveData["main_window"]["y"]._int();
 			}
 			if (jSaveData["main_window"].exists("w")) {
-				iW = jSaveData["main_window"]["w"]._uint32();
+				iW = jSaveData["main_window"]["w"]._int();
 			}
 			if (jSaveData["main_window"].exists("h")) {
-				iH = jSaveData["main_window"]["h"]._uint32();
+				iH = jSaveData["main_window"]["h"]._int();
 			}
 			if (jSaveData["main_window"]["fullscreen"].boolean()) {
-				window_flags = (SDL_WindowFlags)(window_flags | SDL_WINDOW_FULLSCREEN_DESKTOP);
+				window_flags = static_cast<SDL_WindowFlags>(window_flags | SDL_WINDOW_FULLSCREEN_DESKTOP);
 			} else if (jSaveData["main_window"]["state"] == "maximized") {
-				window_flags = (SDL_WindowFlags)(window_flags | SDL_WINDOW_MAXIMIZED);
+				window_flags = static_cast<SDL_WindowFlags>(window_flags | SDL_WINDOW_MAXIMIZED);
 			} else if (jSaveData["main_window"]["state"] == "minimized") {
-				window_flags = (SDL_WindowFlags)(window_flags | SDL_WINDOW_MINIMIZED);
+				window_flags = static_cast<SDL_WindowFlags>(window_flags | SDL_WINDOW_MINIMIZED);
 			}
 		}
 
@@ -356,29 +362,40 @@ int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle)
 						{
 							RecursiveExclusiveLock lock(mtx);
 							SDL_SetWindowFullscreen(window, 0);
-							SDL_SetWindowPosition(window, jSaveData["main_window"]["x"]._uint32(), jSaveData["main_window"]["y"]._uint32());
-							SDL_SetWindowSize(window, jSaveData["main_window"]["w"]._uint32(), jSaveData["main_window"]["h"]._uint32());
+							SDL_SetWindowPosition(window, jSaveData["main_window"]["x"]._int(), jSaveData["main_window"]["y"]._int());
+							SDL_SetWindowSize(window, jSaveData["main_window"]["w"]._int(), jSaveData["main_window"]["h"]._int());
 							jSaveData["main_window"]["state"] = "";
 							break;
 						}
+
+						default:
+							break;
 					}
-				} else {
+				}/* else {
 					switch (event.type) {
 						case SDL_KEYDOWN:
 						{
+							switch (event.key.type) {
+								default:
+									break;
+							}
 
 							break;
 						}
 						case SDL_KEYUP:
 						{
 							switch (event.key.type) {
-
+								default:
+									break;
 							}
 
 							break;
 						}
+
+						default:
+							break;
 					}
-				}
+				}*/
 			}
 
 			ImGui_ImplOpenGL3_NewFrame();
@@ -388,7 +405,7 @@ int EasyAppBase::Run(const std::string & sAppName, const std::string & sTitle)
 			Render();
 
 			ImGui::Render();
-			glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+			glViewport(0, 0, static_cast<int>(io.DisplaySize.x), static_cast<int>(io.DisplaySize.y));
 			glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
 			glClear(GL_COLOR_BUFFER_BIT);
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -452,15 +469,14 @@ void EasyAppBase::Render()
 		main_render();
 	}
 
-	ImGuiID dockspace_id = 0;
 	if (bShowEasyAbout) {
 		ImGui::OpenPopup("About EasyAppBase");
 		auto size = viewport->Size;
-		size.x = size.x * 0.5;
-		size.y = size.y * 0.5;
+		size.x = size.x * 0.5f;
+		size.y = size.y * 0.5f;
 		auto pos = viewport->Pos;
-		pos.x = pos.x + (viewport->Size.x - size.x) * 0.5;
-		pos.y = pos.y + (viewport->Size.y - size.y) * 0.5;
+		pos.x = pos.x + (viewport->Size.x - size.x) * 0.5f;
+		pos.y = pos.y + (viewport->Size.y - size.y) * 0.5f;
 
 		ImGui::SetNextWindowPos(pos);
 		ImGui::SetNextWindowSize(size);
@@ -561,7 +577,8 @@ void EasyAppBase::Render()
 		ImGui::EndPopup();
 	}
 	auto & registry = *EasyAppBase::Registry();
-	if (registry.size()) {
+	if (!registry.empty()) {
+		ImGuiID dockspace_id = 0;
 		if (!bDisableDocking) {
 			ImGui::BeginChild("MyDockSpace", ImGui::GetContentRegionAvail(), ImGuiChildFlags_FrameStyle);
 			if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
@@ -598,15 +615,15 @@ void EasyAppBase::Render()
 void EasyAppBase::SetMainRenderer(std::function<void ()> render)
 {
 	RecursiveExclusiveLock lock(mtx);
-	main_render = render;
+	main_render = std::move(render);
 }
 
-refTSEx<json::value> EasyAppBase::ExclusiveSettings()
+refTSEx<json::value> EasyAppBase::ExclusiveSettings() const
 {
 	return ExclusiveSettings(sName);
 }
 
-refTSEx<json::value> EasyAppBase::SharedSettings()
+refTSEx<json::value> EasyAppBase::SharedSettings() const
 {
 	return ExclusiveSettings(sName);
 }
@@ -647,8 +664,8 @@ void EasyAppBase::Menu()
 				SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
 			} else {
 				SDL_SetWindowFullscreen(window, 0);
-				SDL_SetWindowPosition(window, jSaveData["main_window"]["x"]._uint32(), jSaveData["main_window"]["y"]._uint32());
-				SDL_SetWindowSize(window, jSaveData["main_window"]["w"]._uint32(), jSaveData["main_window"]["h"]._uint32());
+				SDL_SetWindowPosition(window, jSaveData["main_window"]["x"]._int(), jSaveData["main_window"]["y"]._int());
+				SDL_SetWindowSize(window, jSaveData["main_window"]["w"]._int(), jSaveData["main_window"]["h"]._int());
 			}
 		}
 
@@ -703,7 +720,7 @@ void EasyAppBase::Menu()
 
 	{
 		auto & registry = *EasyAppBase::Registry();
-		if (registry.size()) {
+		if (!registry.empty()) {
 			if (ImGui::BeginMenu("Windows"))	{
 				for (auto & window : registry) {
 					bool bShow = jSaveData["show"][window.first].boolean();

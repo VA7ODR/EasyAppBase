@@ -1,3 +1,5 @@
+#pragma once
+
 #define EASY_APP_LICENSE \
 	"Copyright (c) 2024 James Baker" \
 	"\n" \
@@ -21,7 +23,7 @@
 	"\n" \
 	"The official repository for this library is at https://github.com/VA7ODR/EasyAppBase"
 
-#pragma once
+
 
 #include "app_logger.hpp"
 #include "utils.hpp"
@@ -43,16 +45,17 @@
 class EasyAppBase
 {
 	public:
-		EasyAppBase(const std::string & sNameIn, const std::string sTitleIn);
-		virtual ~EasyAppBase() {}
+		EasyAppBase(const std::string & sNameIn, const std::string & sTitleIn);
+		EasyAppBase(std::string && sNameIn, std::string && sTitleIn);
+		virtual ~EasyAppBase() = default;
 
 		virtual void Start() {};
 		virtual void Render(bool * bShow) = 0;
 		virtual void Stop() {};
 		virtual bool BuildsOwnWindow() { return false; }
 
-		const std::string & Name() const { return sName; }
-		const std::string & Title() const { return sTitle; }
+		[[nodiscard]] const std::string & Name() const { return sName; }
+		[[nodiscard]] const std::string & Title() const { return sTitle; }
 
 		static void DisableDemo(bool bDisable);
 		static void DisableDocking(bool bDisable);
@@ -63,9 +66,9 @@ class EasyAppBase
 		static int Run(const std::string & sAppName, const std::string & sTitle = "");
 		static void SetMainRenderer(std::function<void ()> render);
 
-		refTSEx<json::value> ExclusiveSettings();
+		refTSEx<json::value> ExclusiveSettings() const;
 
-		refTSEx<json::value> SharedSettings();
+		refTSEx<json::value> SharedSettings() const;
 
 		template <typename T>
 		static std::shared_ptr<EasyAppBase> GenerateWindow()

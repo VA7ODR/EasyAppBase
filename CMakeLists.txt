@@ -35,7 +35,7 @@ endif(ADDRESSSANITIZER)
 set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_INIT} ${ADDRESSSANITIZERFLAGS} -fPIC -rdynamic ")
 
 
-set(Boost_USE_STATIC_LIBS	ON) # only find static libs
+set(Boost_USE_STATIC_LIBS	    ON) # only find static libs
 set(Boost_USE_MULTITHREADED     ON)
 set(Boost_USE_STATIC_RUNTIME    OFF)
 
@@ -45,12 +45,13 @@ find_package(OpenGL REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 if (NOT SOURCE_DIR_DEFINITION)
-add_compile_definitions(SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+    add_compile_definitions(SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 endif (NOT SOURCE_DIR_DEFINITION)
 
 add_subdirectory(json_document)
 
-set(JSON_ORDERED OFF CACHE BOOL "Override ordered json/xml to OFF" FORCE)
+set(JSON_ORDERED ON CACHE BOOL "Override ordered json/xml to ON" FORCE)
+set(JSON_DATA_DOCUMENT ON CACHE BOOL "Override data::document to ON" FORCE)
 
 include_directories(json_document shared_recursive_mutex imgui imgui/backends ${SDL2_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
 
