@@ -75,9 +75,9 @@ namespace Network
 			CoreBase(int threadCountIn);
 			~CoreBase();
 
-			void Exit();
-			void WakeUp();
-			net::io_context & IOContext();
+			void                Exit();
+			void                WakeUp() const;
+			net::io_context &   IOContext();
 			const std::string & Certificates() const;
 
 		protected:
@@ -103,11 +103,11 @@ namespace Network
 		class ClientBase : public std::enable_shared_from_this<ClientBase>
 		{
 			public:
-				ClientBase(const std::string & sAddressIn, int iPortIn, bool bSSLIn, bool bAllowSelfSignedIn = false);
+				ClientBase(std::string  sAddressIn, int iPortIn, bool bSSLIn, bool bAllowSelfSignedIn = false);
 				~ClientBase();
 
 				void KeepAlive(bool bKeepAliveIn);
-				bool KeepAlive();
+				bool KeepAlive() const;
 
 				virtual bool Connected();
 				virtual void Close();
@@ -121,9 +121,9 @@ namespace Network
 				void Delete(const std::string & sPath, handler_t handlerIn, std::chrono::seconds timeout = 30s, bool bKeepAliveIn = false);
 
 			protected:
-				beast::tcp_stream & tcp_stream();
-				beast::ssl_stream<beast::tcp_stream> & ssl_stream();
-				virtual void PrepStream();
+				beast::tcp_stream &                    tcp_stream() const;
+				beast::ssl_stream<beast::tcp_stream> & ssl_stream() const;
+				virtual void                           PrepStream();
 
 				void do_resolve();
 				virtual void do_connect();

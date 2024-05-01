@@ -32,6 +32,7 @@ The official repository for this library is at https://github.com/VA7ODR/EasyApp
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 namespace Network
 {
@@ -133,8 +134,8 @@ namespace Network
 				out += '+';
 			} else {
 				out += '%';
-				out += "0123456789ABCDEF"[((unsigned char)c) >> 4];
-				out += "0123456789ABCDEF"[((unsigned char)c) & 15];
+				out += "0123456789ABCDEF"[static_cast<unsigned char>(c) >> 4];
+				out += "0123456789ABCDEF"[static_cast<unsigned char>(c) & 15];
 			}
 		}
 
@@ -148,8 +149,8 @@ namespace Network
 		for (size_t i = 0; i < in.size(); ++i) {
 			if (in[i] == '%') {
 				if (i + 2 < in.size()) {
-					auto c = std::stoi(in.substr(i + 1, 2), 0, 16);
-					out += c;
+					auto c = std::stoi(in.substr(i + 1, 2), nullptr, 16);
+					out += static_cast<char>(c);
 					i += 2;
 				}
 			} else if (in[i] == '+') {
@@ -170,11 +171,10 @@ namespace Network
 			Log(AppLogger::DEBUG) << "Network::CoreBase::CoreBase " << threadCountIn << std::endl;
 			vThreads.reserve(threadCountIn);
 			for(auto i = threadCountIn - 1; i >= 0; --i) {
-				vThreads.push_back(THREAD("Network::core::" + std::to_string(i), [&](std::stop_token stoken, int iThreadNumber)
+				vThreads.emplace_back(THREAD("Network::core::" + std::to_string(i), [&](const std::stop_token & /*stoken*/, int iThreadNumber)
 				{
 					while (!bExit) {
-						auto iEvent = EventHandlerWait({eWakeUp, eExit}, EventHandler::INFINITE);
-						switch (iEvent) {
+						switch (EventHandlerWait({eWakeUp, eExit}, EventHandler::INFINITE)) {
 							case 0:
 								if (ioc.stopped()) {
 									ioc.restart();
@@ -208,7 +208,7 @@ namespace Network
 		vThreads.clear();
 	}
 
-	void CoreBase::WakeUp()
+	void CoreBase::WakeUp() const
 	{
 		EventHandlerSet(eWakeUp);
 	}
@@ -244,9 +244,9 @@ namespace Network
 
 	namespace HTTP
 	{
-		ClientBase::ClientBase(const std::string &sAddressIn, int iPortIn, bool bSSLIn, bool bAllowSelfSignedIn) :
+		ClientBase::ClientBase(std::string sAddressIn, int iPortIn, bool bSSLIn, bool bAllowSelfSignedIn) :
 			core(Core()),
-			sAddress(sAddressIn),
+			sAddress(std::move(sAddressIn)),
 			iPort(iPortIn),
 			resolver(core->IOContext()),
 			bSSL(bSSLIn),
@@ -269,7 +269,7 @@ namespace Network
 			bKeepAlive = bKeepAliveIn;
 		}
 
-		bool ClientBase::KeepAlive()
+		bool ClientBase::KeepAlive() const
 		{
 			return bKeepAlive;
 		}
@@ -294,14 +294,14 @@ namespace Network
 		void ClientBase::Request(request_t reqIn, handler_t handlerIn, std::chrono::seconds timeout, bool bKeepAliveIn)
 		{
 			Log(AppLogger::DEBUG) << "ClientTCP::Request " << sAddress << ":" << iPort << std::endl;
-			req = reqIn;
+			req = std::move(reqIn);
 			res = std::make_shared<http::response<http::string_body>>();
 			req->target() = URLEncode(req->target());
 			if (req->target().empty()) {
 				req->target("/");
 			}
 
-			handler = handlerIn;
+			handler = std::move(handlerIn);
 			bKeepAlive = bKeepAliveIn;
 			req->keep_alive(bKeepAlive);
 			bool bConnected = Connected();
@@ -320,7 +320,7 @@ namespace Network
 			auto req = std::make_shared<http::request<http::string_body>>(http::verb::head, sPath, 11);
 			req->set(http::field::host, sAddress/* + ":" + std::to_string(iPort)*/);
 			req->set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-			Request(req, handlerIn, timeout, bKeepAliveIn);
+			Request(req, std::move(handlerIn), timeout, bKeepAliveIn);
 		}
 
 		void ClientBase::Get(const std::string &sPath, handler_t handlerIn, std::chrono::seconds timeout, bool bKeepAliveIn)
@@ -329,7 +329,7 @@ namespace Network
 			auto req = std::make_shared<http::request<http::string_body>>(http::verb::get, sPath, 11);
 			req->set(http::field::host, sAddress/* + ":" + std::to_string(iPort)*/);
 			req->set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-			Request(req, handlerIn, timeout, bKeepAliveIn);
+			Request(req, std::move(handlerIn), timeout, bKeepAliveIn);
 		}
 
 		void ClientBase::Put(const std::string &sPath, const std::string &sBody, const std::string &sContentType, handler_t handlerIn, std::chrono::seconds timeout, bool bKeepAliveIn)
@@ -341,7 +341,7 @@ namespace Network
 			req->set(http::field::content_type, sContentType);
 			req->body() = sBody;
 			req->prepare_payload();
-			Request(req, handlerIn, timeout, bKeepAliveIn);
+			Request(req, std::move(handlerIn), timeout, bKeepAliveIn);
 		}
 
 		void ClientBase::Post(const std::string &sPath, const std::string &sBody, const std::string &sContentType, handler_t handlerIn, std::chrono::seconds timeout, bool bKeepAliveIn)
@@ -353,7 +353,7 @@ namespace Network
 			req->set(http::field::content_type, sContentType);
 			req->body() = sBody;
 			req->prepare_payload();
-			Request(req, handlerIn, timeout, bKeepAliveIn);
+			Request(req, std::move(handlerIn), timeout, bKeepAliveIn);
 		}
 
 		void ClientBase::Delete(const std::string &sPath, handler_t handlerIn, std::chrono::seconds timeout, bool bKeepAliveIn)
@@ -362,14 +362,16 @@ namespace Network
 			auto req = std::make_shared<http::request<http::string_body>>(http::verb::delete_, sPath, 11);
 			req->set(http::field::host, sAddress/* + ":" + std::to_string(iPort)*/);
 			req->set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-			Request(req, handlerIn, timeout, bKeepAliveIn);
+			Request(req, std::move(handlerIn), timeout, bKeepAliveIn);
 		}
 
-		beast::tcp_stream &ClientBase::tcp_stream() {
+		beast::tcp_stream &ClientBase::tcp_stream() const
+		{
 			return stream->next_layer();
 		}
 
-		beast::ssl_stream<beast::tcp_stream> &ClientBase::ssl_stream() {
+		beast::ssl_stream<beast::tcp_stream> &ClientBase::ssl_stream() const
+		{
 			return *stream;
 		}
 
@@ -385,15 +387,15 @@ namespace Network
 		{
 			Log(AppLogger::DEBUG) << "ClientTCP::do_resolve " << sAddress << ":" << iPort << std::endl;
 			auto self = shared_from_this();
-			resolver.async_resolve(sAddress, std::to_string(iPort), beast::bind_front_handler([&, self] (boost::system::error_code ec, tcp::resolver::results_type results)
+			resolver.async_resolve(sAddress, std::to_string(iPort), beast::bind_front_handler([&, self] (const boost::system::error_code & ec, tcp::resolver::results_type results)
 			{
 				if (ec) {
 					Log(AppLogger::ERROR) << "ClientBase::on_resolve Error: " << ec.message() << ": " << sAddress << ":" << iPort << std::endl;
 					return;
 				}
 
-				resolve_results = results;
-				do_connect();
+				resolve_results = std::move(results);
+				self->do_connect();
 			}));
 			core->WakeUp();
 		}
@@ -402,16 +404,16 @@ namespace Network
 		{
 			Log(AppLogger::DEBUG) << "ClientTCP::do_connect " << sAddress << ":" << iPort << std::endl;
 			auto self = shared_from_this();
-			tcp_stream().async_connect(resolve_results, beast::bind_front_handler([&, self] (boost::system::error_code ec, tcp::resolver::results_type::endpoint_type)
+			tcp_stream().async_connect(resolve_results, beast::bind_front_handler([&, self] (const boost::system::error_code & ec, const tcp::resolver::results_type::endpoint_type&)
 			{
 				if (ec) {
 					Log(AppLogger::ERROR) << "ClientBase::on_connect Error: " << ec.message() << ": " << sAddress << ":" << iPort << std::endl;
 					return;
 				}
 				if (bSSL) {
-					do_handshake();
+					self->do_handshake();
 				} else {
-					do_write();
+					self->do_write();
 				}
 			}));
 			core->WakeUp();
@@ -421,13 +423,13 @@ namespace Network
 		{
 			Log(AppLogger::DEBUG) << "ClientTCP::do_handshake " << sAddress << ":" << iPort << std::endl;
 			auto self = shared_from_this();
-			ssl_stream().async_handshake(ssl::stream_base::client, beast::bind_front_handler([&, self] (boost::system::error_code ec)
+			ssl_stream().async_handshake(ssl::stream_base::client, beast::bind_front_handler([&, self] (const boost::system::error_code & ec)
 			{
 				if (ec) {
 					Log(AppLogger::ERROR) << "ClientBase::on_handshake Error: " << ec.message() << ": " << sAddress << ":" << iPort << std::endl;
 					return;
 				}
-				do_write();
+				self->do_write();
 			}));
 			core->WakeUp();
 		}
@@ -435,15 +437,15 @@ namespace Network
 		void ClientBase::do_write()
 		{
 			Log(AppLogger::DEBUG) << "ClientTCP::do_write " << sAddress << ":" << iPort << std::endl;
-			auto self = shared_from_this();
-			auto write_handler = [&, self] (boost::system::error_code ec, std::size_t bytes_transferred)
+			auto self          = shared_from_this();
+			auto write_handler = [&, self] (const boost::system::error_code & ec, std::size_t bytes_transferred)
 			{
 				boost::ignore_unused(bytes_transferred);
 				if (ec) {
 					Log(AppLogger::ERROR) << "ClientBase::on_write Error: " << ec.message() << ": " << sAddress << ":" << iPort << std::endl;
 					return;
 				}
-				do_read();
+				self->do_read();
 			};
 			if (bSSL) {
 				http::async_write(ssl_stream(), *req, beast::bind_front_handler(write_handler));
@@ -457,13 +459,14 @@ namespace Network
 		void ClientBase::do_read()
 		{
 			Log(AppLogger::DEBUG) << "ClientTCP::do_read " << sAddress << ":" << iPort << std::endl;
-			auto self = shared_from_this();
-			auto read_handler = [&, self] (boost::system::error_code ec, std::size_t bytes_transferred)
+			auto self         = shared_from_this();
+			auto read_handler = [&, self] (const boost::system::error_code & ec, std::size_t bytes_transferred)
 			{
 				if (ec) {
 					Log(AppLogger::ERROR) << "ClientBase::on_read Error: " << ec.message() << ": " << sAddress << ":" << iPort << std::endl << *res << std::endl;
 					return;
 				}
+				boost::ignore_unused(self);
 				handler(req, res, sAddress, iPort);
 			};
 			if (bSSL) {
