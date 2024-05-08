@@ -45,18 +45,18 @@
 class EasyAppBase
 {
 	public:
-	class SettingsTreeEntry
-	{
-		public:
-		SettingsTreeEntry() = default;
-		~SettingsTreeEntry() = default;
+		class SettingsTreeEntry
+		{
+			public:
+			SettingsTreeEntry() = default;
+			~SettingsTreeEntry() = default;
 
-		std::string sName;
-		std::set<SettingsTreeEntry> children;
-		bool operator<(const SettingsTreeEntry & rhs) const;
-	};
+			std::string sName;
+			std::set<SettingsTreeEntry> children;
+			bool operator<(const SettingsTreeEntry & rhs) const;
+		};
 
-	EasyAppBase(const std::string & sNameIn, const std::string & sTitleIn);
+		EasyAppBase(const std::string & sNameIn, const std::string & sTitleIn);
 		EasyAppBase(std::string && sNameIn, std::string && sTitleIn);
 		virtual ~EasyAppBase() = default;
 
@@ -80,6 +80,9 @@ class EasyAppBase
 
 		[[nodiscard]] refTSEx<json::value> ExclusiveSettings() const;
 		[[nodiscard]] refTSEx<json::value> SharedSettings() const;
+
+		[[nodiscard]] static refTSEx<json::value> ExclusiveGlobalSettings();
+		[[nodiscard]] static refTSEx<json::value> SharedGlobalSettings();
 
 		template <typename T>
 		static std::shared_ptr<EasyAppBase> GenerateWindow()
@@ -106,7 +109,6 @@ class EasyAppBase
 		static void StopAll();
 
 		static refTSEx<json::value> ExclusiveSettings(const std::string & sName);
-
 		static refTSSh<json::value> SharedSettings(const std::string & sName);
 
 		static EventHandler::Event eQuit;

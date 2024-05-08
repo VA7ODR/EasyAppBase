@@ -634,6 +634,16 @@ refTSEx<json::value> EasyAppBase::SharedSettings() const
 	return ExclusiveSettings(sName);
 }
 
+refTSEx<json::value> EasyAppBase::ExclusiveGlobalSettings()
+{
+	return ExclusiveSettings("Global");
+}
+
+refTSEx<json::value> EasyAppBase::SharedGlobalSettings()
+{
+	return ExclusiveSettings("Global");
+}
+
 void EasyAppBase::ExitAll() {
 	EventHandlerSet(eQuit);
 }
