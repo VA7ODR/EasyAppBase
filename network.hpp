@@ -27,11 +27,11 @@ The official repository for this library is at https://github.com/VA7ODR/EasyApp
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
-#include <boost/beast/version.hpp>
 #include <boost/beast/ssl.hpp>
-#include <boost/asio/dispatch.hpp>
-#include <boost/asio/strand.hpp>
-#include <boost/config.hpp>
+#include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
+#include <boost/asio/serial_port.hpp>
+
 #include <memory>
 #include <vector>
 
@@ -92,6 +92,40 @@ namespace Network
 	using core_t = std::shared_ptr<CoreBase>;
 	core_t & Core(int iThreadCountInit = 0);  // calling this with <= 0 will not create an instance if one does not exist. Only the first call to this > 0 will create the instance.
 	void ExitAll();
+
+	class Serial
+	{
+		public:
+			// Serial port class using Boost::asio:
+
+			Serial(const std::string & sPortIn, int iBaudRateIn, int iDataBitsIn = 8, int iStopBitsIn = 1, int iParityIn = 0, int iFlowControlIn = 0, int iTimeoutIn = 1000);
+			~Serial();
+
+			bool IsOpen() const;
+			bool Open();
+			bool Close();
+
+			void Write(const std::string & sData);
+			void SetReadCalback(std::function<void(const std::string & sData)> callback);
+
+			static std::deque<std::string> ListPorts();
+
+		private:
+			void DoRead();
+
+			core_t core;
+			std::string sPort;
+			int iBaudRate;
+			int iDataBits;
+			int iStopBits;
+			int iParity;
+			int iFlowControl;
+			int iTimeout;
+			boost::asio::serial_port port;
+			std::function<void(const std::string & sData)> readCallback;
+			std::string sReadData;
+			mutable std::recursive_mutex mtx;
+	};
 
 	namespace HTTP
 	{

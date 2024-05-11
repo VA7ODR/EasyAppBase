@@ -33,6 +33,9 @@ The official repository for this library is at https://github.com/VA7ODR/EasyApp
 #include <fstream>
 #include <sstream>
 #include <utility>
+#include <filesystem>
+#include <bits/fs_path.h>
+#include <boost/beast/version.hpp>
 
 namespace Network
 {
@@ -187,6 +190,7 @@ namespace Network
 								break;
 						}
 					}
+					Log(AppLogger::DEBUG) << "Network::CoreBase::CoreBase::Thread " << iThreadNumber << " exiting" << std::endl;
 				}, i));
 			}
 		}
@@ -202,6 +206,7 @@ namespace Network
 		EventHandlerSet(eExit);
 		bExit = true;
 		for(auto &thread : vThreads) {
+			ioc.stop();
 			thread.get_thread().request_stop();
 			thread.get_thread().join();
 		}
@@ -240,6 +245,138 @@ namespace Network
 		if (core) {
 			core->Exit();
 		}
+	}
+
+	Serial::Serial(const std::string &sPortIn, int iBaudRateIn, int iDataBitsIn, int iStopBitsIn, int iParityIn, int iFlowControlIn, int iTimeoutIn) :
+		core(Core()),
+		sPort(sPortIn),
+		iBaudRate(iBaudRateIn),
+		iDataBits(iDataBitsIn),
+		iStopBits(iStopBitsIn),
+		iParity(iParityIn),
+		iFlowControl(iFlowControlIn),
+		iTimeout(iTimeoutIn),
+		port(core->IOContext(), sPort)
+	{
+		std::lock_guard lock(mtx);
+		Log(AppLogger::DEBUG) << "Serial::Serial " << sPort << ", " << iBaudRateIn << ", " << iDataBitsIn << ", " << iStopBitsIn << ", " << iParityIn << ", " << iFlowControlIn << std::endl;
+		boost::system::error_code ec;
+		port.set_option(boost::asio::serial_port_base::baud_rate(iBaudRate), ec);
+		port.set_option(boost::asio::serial_port_base::character_size(iDataBits), ec);
+		port.set_option(boost::asio::serial_port_base::stop_bits(static_cast<boost::asio::serial_port_base::stop_bits::type>(iStopBits ? boost::asio::serial_port_base::stop_bits::two : boost::asio::serial_port_base::stop_bits::one)), ec);
+		port.set_option(boost::asio::serial_port_base::parity(static_cast<boost::asio::serial_port_base::parity::type>(iParity)), ec);
+		port.set_option(boost::asio::serial_port_base::flow_control(static_cast<boost::asio::serial_port_base::flow_control::type>(iFlowControl)), ec);
+
+	}
+
+	Serial::~Serial()
+	{
+		std::lock_guard lock(mtx);
+		Close();
+	}
+
+	bool Serial::IsOpen() const
+	{
+		std::lock_guard lock(mtx);
+		return port.is_open();
+	}
+
+	bool Serial::Open()
+	{
+		std::lock_guard lock(mtx);
+		if (!port.is_open()) {
+			Log(AppLogger::DEBUG) << "Serial::Open " << sPort << std::endl;
+			boost::system::error_code ec;
+			port.open(sPort, ec);
+			if (ec) {
+				Log(AppLogger::ERROR) << "Serial::Open Error: " << ec.message() << ": " << sPort << std::endl;
+			}
+		}
+		return port.is_open();
+	}
+
+	bool Serial::Close()
+	{
+		std::lock_guard lock(mtx);
+		if (port.is_open()) {
+			Log(AppLogger::DEBUG) << "Serial::Close " << sPort << std::endl;
+			boost::system::error_code ec;
+			port.close(ec);
+			if (ec) {
+				Log(AppLogger::ERROR) << "Serial::Close Error: " << ec.message() << ": " << sPort << std::endl;
+			}
+		}
+		return !port.is_open();
+	}
+
+	void Serial::Write(const std::string &sData)
+	{
+		std::lock_guard lock(mtx);
+		Log(AppLogger::DEBUG) << "Serial::Write " << sPort << std::endl;
+		boost::asio::write(port, boost::asio::buffer(sData));
+	}
+
+	void Serial::DoRead()
+	{
+		std::lock_guard lock(mtx);
+		// Log(AppLogger::DEBUG) << "Serial::DoRead " << sPort << std::endl;
+		static char szBuffer[2] = "\0";
+		szBuffer[0] = 0;
+		boost::asio::async_read(port, boost::asio::buffer(&szBuffer, 1), [&](const boost::system::error_code &ec, std::size_t bytesIn)
+		{
+			if (!ec) {
+				std::lock_guard lock(mtx);
+				sReadData += szBuffer;
+				Log(AppLogger::TRACE) << "Serial::HandleRead " << sPort << ": " << szBuffer[0] << std::endl;
+				if (szBuffer[0] == '~') {
+					Log(AppLogger::TRACE) << "Serial::HandleRead " << sPort << ": " << sReadData << std::endl;
+					readCallback(sReadData);
+					sReadData.clear();
+				}
+			} else {
+				std::lock_guard lock(mtx);
+				Log(AppLogger::ERROR) << "Serial::HandleRead Error: " << ec.message() << ": " << sPort << std::endl;
+			}
+			DoRead();
+		});
+		core->WakeUp();
+	}
+
+	void Serial::SetReadCalback(std::function<void(const std::string &sData)> callback)
+	{
+		std::lock_guard lock(mtx);
+		readCallback = std::move(callback);
+		if (readCallback) {
+			DoRead();
+		}
+	}
+
+	std::deque<std::string> Serial::ListPorts()
+	{
+		std::deque<std::string> sPorts;
+		#ifdef _WIN32
+		HKEY hKey;
+		if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\SERIALCOMM", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+			char szName[256];
+			char szData[256];
+			DWORD dwName, dwData, dwIndex = 0;
+			while (RegEnumValue(hKey, dwIndex++, szName, &dwName, NULL, NULL, (LPBYTE)szData, &dwData) == ERROR_SUCCESS) {
+				sPorts.push_back(szData);
+			}
+			RegCloseKey(hKey);
+		}
+		#else
+		// Linux and macOS
+		// use std::filesystem to scan the /dev directory for "ttyS*", "ttyUSB*", "ttyACM*" devices and "ttyAMA*" devices
+		auto path = std::filesystem::path("/dev");
+		for (const auto &entry : std::filesystem::directory_iterator(path)) {
+			auto filename = entry.path().filename().string();
+			if (filename.compare(0, 4, "ttyS") == 0 || filename.compare(0, 6, "ttyUSB") == 0 || filename.compare(0, 6, "ttyACM") == 0 || filename.compare(0, 6, "ttyAMA") == 0) {
+				sPorts.push_back(entry.path().string());
+			}
+		}
+		#endif
+		return sPorts;
 	}
 
 	namespace HTTP
