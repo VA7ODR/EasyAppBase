@@ -14,7 +14,7 @@ find_package(OpenSSL REQUIRED)
 
 set (SOURCE_DIR_DEFINITION SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 
-add_compile_definitions(APP_NAME="${PROJECT_NAME}" APP_VERSION_STRING="1.0.0" ${SOURCE_DIR_DEFINITION})
+add_compile_definitions(APP_NAME="${PROJECT_NAME}" APP_VERSION_STRING="1.0.0" ${SOURCE_DIR_DEFINITION} USE_DATA_DOCUMENT SUPPORT_ORDERED_JSON)
 
 add_subdirectory(EasyAppBase)
 include_directories(EasyAppBase
